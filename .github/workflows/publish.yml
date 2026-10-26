@@ -25,11 +25,11 @@ jobs:
       name: github-pages
     steps:
       - name: Check out approved main branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Validate publishing code
