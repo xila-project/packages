@@ -106,7 +106,7 @@ class RegistryTests(unittest.TestCase):
         external = Path(self.temp.name) / "outside.toml"
         external.write_text("not a manifest", encoding="utf-8")
         (self.root / "link.toml").symlink_to(external)
-        with self.assertRaisesRegex(ManifestError, "unexpected file"):
+        with self.assertRaisesRegex(ManifestError, "symbolic links are forbidden"):
             collect(self.root)
 
     def test_rejects_numeric_prerelease_leading_zeros(self):
