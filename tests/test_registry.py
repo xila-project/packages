@@ -1,7 +1,6 @@
 """Regression tests for the static package registry publisher."""
 from __future__ import annotations
 
-import copy
 import tempfile
 import unittest
 from pathlib import Path
@@ -60,6 +59,10 @@ class RegistryTests(unittest.TestCase):
         build(entries, output)
         self.assertTrue((output / "v1/packages/community/weather.json").exists())
 
+    def test_git_placeholder_is_ignored(self):
+        (self.root / ".gitkeep").write_text("", encoding="utf-8")
+        self.assertEqual(collect(self.root), {})
+
     def test_rejects_invalid_hash(self):
         self.add_version(digest="not-a-sha256")
         with self.assertRaisesRegex(ManifestError, "sha256"):
@@ -75,8 +78,8 @@ class RegistryTests(unittest.TestCase):
     def test_rejects_duplicate_targets(self):
         path = self.add_version()
         doc = path.read_text()
-        path.write_text(doc + doc.split("[[artifacts]]", 1)[1].join(
-            ["[[artifacts]]", "[[artifacts]]"]), encoding="utf-8")
+        artifact_table = doc[doc.index("[[artifacts]]"):]
+        path.write_text(doc + "\n" + artifact_table, encoding="utf-8")
         with self.assertRaises((ManifestError,)):
             collect(self.root)
 
