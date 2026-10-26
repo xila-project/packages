@@ -1,0 +1,9 @@
+# Generated static registry preview
+/_site/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Local developer files
+.DS_Store
