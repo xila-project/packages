@@ -61,7 +61,8 @@ def https_url(value: object, field: str) -> str:
 def version_key(value: str) -> tuple:
     match = VERSION.fullmatch(value)
     check(match is not None, f"invalid semantic version: {value!r}")
-    major, minor, patch, prerelease, _metadata = match.groups()
+    major, minor, patch, prerelease, metadata = match.groups()
+    check(metadata is None, "build metadata is not supported for immutable versions")
     ordering = ()
     if prerelease is not None:
         parts = prerelease.split(".")
@@ -141,9 +142,12 @@ def collect(root: Path = MANIFESTS) -> dict[str, list[dict]]:
     packages = defaultdict(list)
     seen = set()
     for path in sorted(root.rglob("*")):
+        check(not path.is_symlink(), f"symbolic links are forbidden in the package registry: {path}")
         if path.is_dir():
             continue
-        check(path.is_file() and not path.is_symlink() and path.suffix == ".toml",
+        if path == root / ".gitkeep":
+            continue
+        check(path.is_file() and path.suffix == ".toml",
               f"unexpected file in packages directory: {path}")
         try:
             entry = load_manifest(path, root)
