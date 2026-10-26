@@ -12,15 +12,15 @@ A possible Rust workspace:
 package-manager/
   crates/
     package-format/          # bounded no_std archive/manifest parser and writer
-    package-verification/    # reusable no_std hashing and signature primitives
-    package-installer/       # offline installation transactions, filesystem adapters
+    verification/            # migrate the existing Xila core verification crate
+    package-installer/       # offline installation transactions via injected storage traits
     package-repository/      # optional authenticated index and version selection
   tools/
     package-builder/         # host-only archive creator, signing and inspection
     registry-publisher/      # host-only validation and static repository generation
 ```
 
-The split is illustrative, not a commitment to these exact crate names or dependencies. Separate interfaces from executable and platform glue. No unconditional network or desktop dependencies in constrained-device crates.
+The split is illustrative, not a commitment to these exact crate names or dependencies. **The `verification` crate already exists in `xila/core/libraries/verification` (merged in core pull request #518). Migrate it with tests and stable interfaces rather than creating a second cryptographic implementation.** Separate interfaces from executable and platform glue. No unconditional network or desktop dependencies in constrained-device crates.
 
 Related work: [overall application package management #308](https://github.com/xila-project/core/issues/308), [archive format #402](https://github.com/xila-project/core/issues/402), [verification #490](https://github.com/xila-project/core/issues/490), [offline installer #491](https://github.com/xila-project/core/issues/491), [repository #492](https://github.com/xila-project/core/issues/492), [command line #493](https://github.com/xila-project/core/issues/493), and [host builder #494](https://github.com/xila-project/core/issues/494).
 
