@@ -1,0 +1,18 @@
+# Example only. Do not copy fake release information into the published registry.
+# To publish, place the completed file at packages/community/weather/1.0.0.toml.
+schema = 1
+
+[package]
+name = "community.weather"
+version = "1.0.0"
+summary = "Example application presenting current weather"
+license = "MIT"
+source = "https://github.com/example/weather"
+homepage = "https://github.com/example/weather"
+
+[[artifacts]]
+target = "wasm32-wasip1"
+minimum_xila_abi = 1
+url = "https://github.com/example/weather/releases/download/v1.0.0/weather.xpk"
+sha256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+size = 10240
