@@ -24,23 +24,23 @@ jobs:
     environment:
       name: github-pages
     steps:
-      - name: Check out approved main branch
+      - name: "Setup | Checkout approved main"
         uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - name: Install Python
+      - name: "Setup | Python"
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Validate publishing code
+      - name: "Test | Registry publishing code"
         run: python -m unittest discover -s tests -v
-      - name: Build metadata
+      - name: "Build | Registry metadata"
         run: python tools/registry.py build
-      - name: Configure GitHub Pages
+      - name: "Publish | Configure Pages"
         uses: actions/configure-pages@v5
-      - name: Upload published site
+      - name: "Publish | Upload registry site"
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site/
-      - name: Publish to GitHub Pages
+      - name: "Publish | Deploy Pages"
         uses: actions/deploy-pages@v4
