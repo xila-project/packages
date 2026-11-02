@@ -2,8 +2,8 @@
 
 ## Repository responsibilities
 
-- **`Xila-Project/packages` (this repository):** Reviewed contributor submissions, package release declarations, publishing workflows, and static files served by GitHub Pages.
-- **`Xila-Project/package-manager` (planned):** Reusable Rust libraries and authoring tools. This repository must not depend on `xila/core`. The core system and package registry can both depend on stable, versioned package-manager crates.
+- **`xila-project/registry` (this repository, formerly `packages`):** Reviewed contributor submissions, per-version registry entries and developer keys (metadata only; archives stay in each project's releases), publishing workflows, and static files served by GitHub Pages.
+- **`xila-project/package_manager`:** Reusable Rust libraries and the `xila-package` authoring tool, including registry entry generation and verification. It must not depend on Core or on this registry; both depend on versioned package_manager crates.
 - **`Xila-Project/core`:** Xila-specific adapters for the virtual file system, network and application loader, plus the package manager executable and application policy.
 
 A possible Rust workspace:
