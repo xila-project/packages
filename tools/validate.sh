@@ -16,7 +16,9 @@ builder="${XILA_PACKAGE:-}"
 if [[ -z "$builder" ]]; then
   tools=".tools/xila-package-$PACKAGE_MANAGER_REVISION"
   if [[ ! -x "$tools/bin/xila-package" ]]; then
-    cargo install --locked --quiet --root "$tools" \
+    # Own target directory: a shared CARGO_TARGET_DIR/build.target-dir can hold
+    # stale artifacts from other package_manager revisions.
+    CARGO_TARGET_DIR="$root/.tools/target" cargo install --locked --quiet --root "$tools" \
       --git https://github.com/xila-project/package_manager --rev "$PACKAGE_MANAGER_REVISION" xila-package-builder
   fi
   builder="$root/$tools/bin/xila-package"
@@ -24,7 +26,7 @@ fi
 
 # Published versions are immutable: a new release is a new <version>.json.
 if [[ $# -ge 1 ]]; then
-  changed="$(git diff --name-only --diff-filter=MDRT "$1"...HEAD -- packages)"
+  changed="$(git diff --name-only --diff-filter=MDRT "$1"...HEAD -- 'packages/*.json')"
   if [[ -n "$changed" ]]; then
     printf 'published registry entries must not change:\n%s\n' "$changed" >&2
     exit 1
