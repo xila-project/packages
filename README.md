@@ -1,68 +1,42 @@
 # Xila package registry
 
-This repository is the community-facing source of package publication declarations for [Xila](https://github.com/xila-project/core).
-
-The intended registry is **static and directly addressable**: clients will eventually request an individual package descriptor by its identifier instead of downloading an entire catalog. No search service, database, or permanently running server is required.
+This repository is the package registry for [Xila](https://github.com/xila-project/core): **metadata only**, like `crates.io-index`. It holds one entry per released package version and the developer keys allowed to publish them; the `.xpk` archives stay where each project releases them. It is served as static files at [registry.xila.dev](https://registry.xila.dev/), so a client fetches exactly the entry it needs: no search service, database or running server.
 
 > [!IMPORTANT]
-> This repository currently implements an **unauthenticated, development-only registry preview**. The JSON representation, package declaration schema, signing format, and cryptographic trust root are **not yet the production Xila package protocol**. Do not implement trusted installations against this preview or treat an HTTPS download as an authorized package. See [security and architecture](docs/architecture.md).
+> Entries are not yet signed by the **repository key**, and there is no signed index with expiry. Until then the registry proves which developer key signed each archive, but devices cannot yet authenticate the registry itself. See [security and architecture](docs/architecture.md).
 
-## Contributing an application
-
-1. Build the application and publish an immutable `.xpk` archive in a release of your project. The final archive specification is being defined in [Xila core issue #402](https://github.com/xila-project/core/issues/402).
-2. Record the archive's SHA-256 hash, its exact byte length, its target, and the minimum compatible Xila application binary interface version.
-3. Create `packages/<namespace>/<application>/<version>.toml` using [the example](examples/weather-1.0.0.toml). The identifier is `<namespace>.<application>`.
-4. Open a pull request. Validation checks the declaration, versions, naming convention, and basic metadata. A maintainer must still review provenance, content, permissions and ownership.
-
-Use a distinct namespace to avoid collisions. The `xila` namespace is reserved for official applications by convention; this convention is not yet enforced by an authenticated publisher policy. Existing versions must never be replaced with different bytes. Prefer creating a new version.
-
-**The archive files are not stored in Git.** The example uses an external release URL, and generated descriptors point to that immutable release artifact.
-
-## Developer keys
-
-Packages are signed with two separate keys:
-
-- A **developer (publisher) key** signs each `.xpk` package manifest and its SHA-256 file inventory.
-- The **repository key** signs registry entries and authorizes developer keys for namespaces. Devices trust only the repository key and verify repository key → developer key → package signature → file hashes.
-
-Developer public keys live in `keys/developers/<id>.json`. Each file holds the raw 32-byte Ed25519 key in base64 (`public_key`), the same key in OpenSSH form (`openssh`) and the namespaces it may publish. A developer key alone is **not** a trust anchor; repository-key authorization is not implemented yet.
-
-## Local development
-
-Requires Python 3.12 or later; no third-party Python dependencies are required.
-
-```sh
-python -m unittest discover -s tests -v
-python tools/registry.py validate
-python tools/registry.py build
-```
-
-The generated preview is written to `_site/v1`:
+## Layout
 
 ```text
-v1/
-  registry.json
-  packages/
-    community/
-      weather.json
+keys/developers/<id>.json                       developer (publisher) keys
+packages/<identifier, dots as />/<version>.json registry entries
 ```
 
-The registry is initially empty, so its default output contains only `registry.json`. The sample manifest under `examples/` is intentionally **not published**. A package descriptor is generated only after an actual manifest is contributed under `packages/`.
+For example, `xila.pixel-painter` 0.1.0 is `packages/xila/pixel-painter/0.1.0.json`. The formats are defined in [`xila-project/package_manager`](https://github.com/xila-project/package_manager): [registry entry](https://github.com/xila-project/package_manager/blob/main/schemas/registry-entry.schema.json) and [developer key](https://github.com/xila-project/package_manager/blob/main/schemas/developer-key.schema.json).
 
-## Automation
+- A **developer key** (`id`, `author`, Ed25519 `public_key`, `namespaces`) signs package manifests and may only publish identifiers whose first label is in its `namespaces` (`xila-project` publishes `xila.*`).
+- A **registry entry** pins one released archive by HTTPS URL, SHA-256 and size, names its `publisher`, and copies identity, compatibility, capabilities, display name and metadata from the archive's signed manifest. It is **generated from the archive, never written by hand**.
 
-- **Validate package registry**: runs unit tests, checks submitted declarations, and uploads a generated preview on pull requests and changes to the main branch. This workflow has read-only GitHub permissions.
-- **Publish static package registry preview**: after a change is merged into the main branch, regenerates the preview and publishes it using GitHub Pages. This workflow never builds or executes third-party application code and does not use secret signing keys.
+## Publishing a version
 
-To enable GitHub Pages publishing, configure repository **Settings → Pages → Build and deployment → Source: GitHub Actions**. No custom domain is required. The GitHub Pages preview is **not a trusted software distribution endpoint** until the production signature protocol is implemented.
+1. Release a signed `.xpk` in your project (for example with the [reusable packaging workflow](https://github.com/xila-project/package_manager/blob/main/docs/reusable-wasm-package-workflow.md)).
+2. Generate its entry with [`xila-package`](https://github.com/xila-project/package_manager/tree/main/crates/builder):
+   ```sh
+   xila-package registry entry app.xpk publisher.pub <publisher-id> https://…/app.xpk packages/<namespace>/<name>/<version>.json
+   ```
+3. Open a pull request. The first contribution of a publisher also adds its `keys/developers/<id>.json`.
 
-Before accepting outside contributions, configure GitHub branch protection to require successful validation and maintainer approval. Publishing must never consume unreviewed pull-request code with privileged credentials.
+Published versions are **immutable**: a pull request may add entries but never modify or delete one; release a new version instead.
 
-## Long-term separation of responsibilities
+## Validation and publication
 
-[`xila-project/package_manager`](https://github.com/xila-project/package_manager) is the Rust workspace that owns the archive and manifest formats, signature verification, the [registry entry schema](https://github.com/xila-project/package_manager/blob/main/schemas/registry-entry.schema.json) and the `xila-package` CLI (`xila-package registry entry|verify` generates and checks entries from signed archives). This repository will switch its validation and publication to that tool and drop the preview Python publisher.
+[`tools/validate.sh`](tools/validate.sh) installs `xila-package` at a pinned package_manager revision, then:
 
-Follow the [architecture notes](docs/architecture.md), [package format issue #402](https://github.com/xila-project/core/issues/402), and [repository design issue #492](https://github.com/xila-project/core/issues/492).
+- refuses changes to already published entries (pull requests);
+- downloads every entry's archive and runs `xila-package registry check --archives`, which checks key files, entry placement and canonical form, namespace authorization, and each archive's size, SHA-256, signature and copied fields;
+- builds `_site/` from `keys/` and `packages/`, unchanged.
+
+**Validate package registry** runs it on pull requests and on `main`, with read-only permissions. **Publish package registry** runs it on `main` and deploys `_site/` to GitHub Pages. Neither workflow builds or executes application code, and neither uses signing secrets. Run `bash tools/validate.sh` locally (needs `cargo`, `curl` and `jq`; set `XILA_PACKAGE` to reuse an existing binary).
 
 ## Licensing
 

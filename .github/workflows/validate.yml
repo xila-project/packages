@@ -11,26 +11,34 @@ permissions:
 
 jobs:
   validate:
+    # Name required by the main branch ruleset.
     name: Validate manifests and generate a static preview
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: "Setup | Checkout registry"
         uses: actions/checkout@v5
         with:
+          fetch-depth: 0
           persist-credentials: false
-      - name: "Setup | Python"
-        uses: actions/setup-python@v6
+      - name: "Setup | Cache xila-package"
+        uses: actions/cache@v4
         with:
-          python-version: "3.12"
-      - name: "Test | Registry unit tests"
-        run: python -m unittest discover -s tests -v
-      - name: "Validate | Package manifests"
-        run: python tools/registry.py validate
-      - name: "Build | Registry preview"
-        run: python tools/registry.py build
-      - name: "Report | Upload registry preview"
+          path: .tools
+          key: xila-package-${{ hashFiles('tools/validate.sh') }}
+      - name: "Validate | Keys, entries and archives"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$BASE_REF" ]]; then
+            bash tools/validate.sh "origin/$BASE_REF"
+          else
+            bash tools/validate.sh
+          fi
+      - name: "Report | Upload registry site"
         uses: actions/upload-artifact@v4
         with:
-          name: static-package-registry-preview
+          name: registry-site
           path: _site/
           if-no-files-found: error
