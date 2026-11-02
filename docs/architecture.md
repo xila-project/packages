@@ -2,56 +2,44 @@
 
 ## Repository responsibilities
 
-- **`xila-project/registry` (this repository, formerly `packages`):** Reviewed contributor submissions, per-version registry entries and developer keys (metadata only; archives stay in each project's releases), publishing workflows, and static files served by GitHub Pages.
-- **`xila-project/package_manager`:** Reusable Rust libraries and the `xila-package` authoring tool, including registry entry generation and verification. It must not depend on Core or on this registry; both depend on versioned package_manager crates.
-- **`Xila-Project/core`:** Xila-specific adapters for the virtual file system, network and application loader, plus the package manager executable and application policy.
+- **`xila-project/registry` (this repository, formerly `packages`):** reviewed developer keys and per-version registry entries (metadata only), their validation and their publication as static files at `registry.xila.dev`.
+- **`xila-project/package_manager`:** every format and rule: archive and manifest formats, signature verification, registry entries and developer keys, and the `xila-package` CLI (`registry entry`, `registry verify`, `registry check`). It depends on neither Core nor this repository; this repository runs it at a pinned revision and keeps no validator of its own.
+- **Application repositories** (for example `xila-project/applications`): build, sign and release the `.xpk` archives, which stay in their releases.
+- **`xila-project/applications`** also holds the on-device `package` installer.
 
-A possible Rust workspace:
+## Documents
 
-```text
-package-manager/
-  crates/
-    package-format/          # bounded no_std archive/manifest parser and writer
-    verification/            # migrate the existing Xila core verification crate
-    package-installer/       # offline installation transactions via injected storage traits
-    package-repository/      # optional authenticated index and version selection
-  tools/
-    package-builder/         # host-only archive creator, signing and inspection
-    registry-publisher/      # host-only validation and static repository generation
-```
+| Document | Written by | Signed by | Answers |
+|---|---|---|---|
+| Developer manifest (`xila-package.json`, app repository) | developer | — | what to ship |
+| Runtime manifest (`.xila/manifest.json`, inside the `.xpk`) | `xila-package bundle build` | developer key | exactly what the package contains (every file's SHA-256) |
+| Registry entry (`packages/…/<version>.json`, here) | `xila-package registry entry` | repository key (not yet) | where the archive is, and that the registry vouches for it |
 
-The split is illustrative, not a commitment to these exact crate names or dependencies. **The `verification` crate already exists in `xila/core/libraries/verification` (merged in core pull request #518). Migrate it with tests and stable interfaces rather than creating a second cryptographic implementation.** Separate interfaces from executable and platform glue. No unconditional network or desktop dependencies in constrained-device crates.
-
-Related work: [overall application package management #308](https://github.com/xila-project/core/issues/308), [archive format #402](https://github.com/xila-project/core/issues/402), [verification #490](https://github.com/xila-project/core/issues/490), [offline installer #491](https://github.com/xila-project/core/issues/491), [repository #492](https://github.com/xila-project/core/issues/492), [command line #493](https://github.com/xila-project/core/issues/493), and [host builder #494](https://github.com/xila-project/core/issues/494).
+An entry pins its archive by SHA-256 and size, so it transitively pins the signed runtime manifest; its copied fields must equal that manifest.
 
 ## Static distribution model
 
-1. Contributors submit source provenance, release identity, declared compatibility and immutable artifact hashes.
-2. Validation checks the declaration. Reviews and publisher policy decide whether a package may be admitted.
-3. A trusted publisher generates canonical, **signed** index metadata (not implemented yet).
-4. GitHub Pages or any static HTTPS origin serves metadata at a predictable path.
-5. GitHub Releases or an interchangeable object store hosts content-addressed immutable package archives.
-6. Xila fetches and authenticates metadata, streams the archive through the verifier and delegates activation to its offline installer.
+1. A developer releases a signed, immutable `.xpk` and submits its generated entry (and, the first time, its developer key).
+2. Validation checks keys, placement, namespace authorization and each archive; a maintainer reviews provenance, content and permissions.
+3. `main` is published unchanged to GitHub Pages. Archives are fetched from their release URLs; because entries pin their hash, any mirror or CDN can serve them without being trusted.
+4. A client resolves `xila.clock` to `packages/xila/clock/<version>.json`, downloads the archive, and verifies it end to end before installing.
 
-There is deliberately **no mandatory search** endpoint or dynamic server. The client resolves `community.weather` to a known descriptor path. Later, a separate static website search index or optional search service may be added without changing package lookup. An update check can consult only installed package identifiers.
+There is deliberately **no mandatory search** endpoint or dynamic server; a search index can be added later without changing lookup.
 
-## Security constraints
+## Trust model
 
-The current publisher is a **non-production preview**. A SHA-256 digest without authenticated metadata does not establish publisher identity or permission to execute the binary. Do not silently promote preview JSON to a trusted protocol.
+Devices will trust only the **repository key** and verify: repository key → developer key (with its namespaces) → package signature → file hashes. Two keys, two checks: the developer signature stays on the archive end to end, and the repository key vouches for both the entry and the developer key.
 
-The production format needs explicit answers for:
+**Not implemented yet** (until then, devices cannot authenticate the registry itself):
 
-- Canonical signed bytes, metadata versions, trusted keys, key rotation, expiry and rollback resistance.
-- Registry and publisher identity; reserved namespaces and conflicts between repositories.
-- Immutable release artifacts and authenticated hash/size/target bindings.
-- Authenticating index descriptors without downloading an unbounded global catalog.
-- Secure resolution of download redirects, safe TLS policies, bounds for network and parsing, replay resistance, and offline installations.
-- Review policy and privileges. A repository signature must not automatically grant filesystem or device capabilities.
+- **Repository signatures** on entries and developer keys, and a signed **index** (snapshot of every entry's hash) with an **expiry** and an increasing **version**, so devices reject stale, rolled-back or mixed metadata (rollback, freeze and mix-and-match attacks).
+- An offline **root key** that only signs the online repository key and developer keys, so a compromised online key can be revoked.
+- **Revocation and rotation** of developer keys.
 
-All formats and adapters must obey the memory limits for microcontrollers. The package reader should be streaming and should not require an entire archive in memory. The final TAR-versus-CPIO decision and canonical manifest are authoritative in issue #402, **not** in this registry preview.
+A SHA-256 digest or a developer signature alone does not grant permission to execute: capabilities and installation policy remain separate decisions.
 
-## Future migration to the shared Rust workspace
+## Constraints
 
-The Python program in this repository is a small, dependency-free bootstrap for a static registry proof of concept. It is **not** an additional canonical Xila manifest implementation. When the package-manager workspace publishes an authoritative host validator and index generator, switch this repository's workflows to invoke that shared tool at a pinned version, and remove the provisional serializer.
-
-Do not have `package-manager` depend on this registry: that would introduce a dependency cycle. The registry depends on the shared tools, never the reverse.
+- Published versions are immutable; a new release is a new entry.
+- Formats and adapters must respect microcontroller memory limits: the package reader streams and never needs an entire archive in memory, and clients fetch one entry rather than a global catalog.
+- Publication never builds or executes contributed code and never uses signing secrets on pull-request code.
