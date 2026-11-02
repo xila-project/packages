@@ -7,7 +7,7 @@
 set -euo pipefail
 
 # package_manager revision providing `xila-package registry check`.
-PACKAGE_MANAGER_REVISION=04a770747f233666ed2de6c8aefae1fa6844efe3
+PACKAGE_MANAGER_REVISION=a0d96a400d2e372c4369a110fd7a0ced51efc025
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
