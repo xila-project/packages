@@ -60,7 +60,7 @@ Before accepting outside contributions, configure GitHub branch protection to re
 
 ## Long-term separation of responsibilities
 
-The planned `Xila-Project/package-manager` repository will be the Rust workspace shared by both this registry and `xila/core`. The Rust workspace should eventually own the authoritative archive and manifest schema, signature verification, offline installation logic, repository metadata, and host-side authoring tools. This repository should then use the shared host tooling instead of independently maintaining the preview Python publisher.
+[`xila-project/package_manager`](https://github.com/xila-project/package_manager) is the Rust workspace that owns the archive and manifest formats, signature verification, the [registry entry schema](https://github.com/xila-project/package_manager/blob/main/schemas/registry-entry.schema.json) and the `xila-package` CLI (`xila-package registry entry|verify` generates and checks entries from signed archives). This repository will switch its validation and publication to that tool and drop the preview Python publisher.
 
 Follow the [architecture notes](docs/architecture.md), [package format issue #402](https://github.com/xila-project/core/issues/402), and [repository design issue #492](https://github.com/xila-project/core/issues/492).
 
