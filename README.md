@@ -18,6 +18,15 @@ Use a distinct namespace to avoid collisions. The `xila` namespace is reserved f
 
 **The archive files are not stored in Git.** The example uses an external release URL, and generated descriptors point to that immutable release artifact.
 
+## Developer keys
+
+Packages are signed with two separate keys:
+
+- A **developer (publisher) key** signs each `.xpk` package manifest and its SHA-256 file inventory.
+- The **repository key** signs registry entries and authorizes developer keys for namespaces. Devices trust only the repository key and verify repository key → developer key → package signature → file hashes.
+
+Developer public keys live in `keys/developers/<id>.toml`. Each file holds the raw 32-byte Ed25519 key in base64 (`public_key`), the same key in OpenSSH form (`openssh`) and the namespaces it may publish. A developer key alone is **not** a trust anchor; repository-key authorization is not implemented yet.
+
 ## Local development
 
 Requires Python 3.12 or later; no third-party Python dependencies are required.
