@@ -11,7 +11,6 @@ permissions:
 
 jobs:
   validate:
-    # Name required by the main branch ruleset.
     name: Validate manifests and generate a static preview
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -42,3 +41,14 @@ jobs:
           name: registry-site
           path: _site/
           if-no-files-found: error
+
+  required:
+    if: always()
+    needs: [validate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: "Gate | Verify mandatory checks"
+        env:
+          VALIDATE: ${{ needs.validate.result }}
+        run: test "$VALIDATE" = success
