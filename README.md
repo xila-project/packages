@@ -2,15 +2,17 @@
 
 This repository is the package registry for [Xila](https://github.com/xila-project/core): **metadata only**, like `crates.io-index`. It holds one entry per released package version and the developer keys allowed to publish them; the `.xpk` archives stay where each project releases them. It is served as static files at [registry.xila.dev](https://registry.xila.dev/), so a client fetches exactly the entry it needs: no search service, database or running server.
 
-> [!IMPORTANT]
-> Entries are not yet signed by the **repository key**, and there is no signed index with expiry. Until then the registry proves which developer key signed each archive, but devices cannot yet authenticate the registry itself. See [security and architecture](docs/architecture.md).
+Devices trust only the registry's **root key**. The published metadata is signed: `root.json` by the offline root key, and `index.json`, every entry and every developer key by the repository key, during publication. See [security and architecture](docs/architecture.md).
 
 ## Layout
 
 ```text
+root.pub, root.json, root.json.sig              root key, and the root-signed list of repository keys
 keys/developers/<id>.json                       developer (publisher) keys
 packages/<identifier, dots as />/<version>.json registry entries
 ```
+
+Publication adds `index.json` and a `.sig` next to every key and entry; they are not committed.
 
 For example, `xila.pixel-painter` 0.1.0 is `packages/xila/pixel-painter/0.1.0.json`. The formats are defined in [`xila-project/package_manager`](https://github.com/xila-project/package_manager): [registry entry](https://github.com/xila-project/package_manager/blob/main/schemas/registry-entry.schema.json) and [developer key](https://github.com/xila-project/package_manager/blob/main/schemas/developer-key.schema.json).
 
@@ -30,13 +32,25 @@ Published versions are **immutable**: a pull request may add entries but never m
 
 ## Validation and publication
 
-[`tools/validate.sh`](tools/validate.sh) installs `xila-package` at a pinned package_manager revision, then:
+[`tools/validate.sh`](tools/validate.sh) installs `xila-package` at the package_manager revision pinned in [`tools/xila-package.sh`](tools/xila-package.sh), then:
 
 - refuses changes to already published entries (pull requests);
 - downloads every entry's archive and runs `xila-package registry check --archives`, which checks key files, entry placement and canonical form, namespace authorization, and each archive's size, SHA-256, signature and copied fields;
-- builds `_site/` from `keys/` and `packages/`, unchanged.
+- builds an unsigned `_site/` preview from `keys/` and `packages/`.
 
-**Validate package registry** runs it on pull requests and on `main`, with read-only permissions. **Publish package registry** runs it on `main` and deploys `_site/` to GitHub Pages. Neither workflow builds or executes application code, and neither uses signing secrets. Run `bash tools/validate.sh` locally (needs `cargo`, `curl` and `jq`; set `XILA_PACKAGE` to reuse an existing binary).
+[`tools/sign.sh`](tools/sign.sh) then runs `xila-package registry sign` with the repository key: it writes `_site/` with `root.json`, every key and entry with its `.sig`, and a signed `index.json` valid for 30 days, and verifies the result from `root.pub` as a device would.
+
+**Validate package registry** runs `validate.sh` on pull requests and on `main`, with read-only permissions and no secrets. **Publish package registry** runs both scripts on `main` and weekly (to renew the index before it expires), then deploys `_site/` to GitHub Pages. The repository seed is the `XILA_REGISTRY_SIGNING_SEED_B64` secret of the `github-pages` environment, available only to that job; it will move to OpenBao, with new keys, once that is available. Neither workflow builds or executes application code. Run `bash tools/validate.sh` locally (needs `cargo`, `curl` and `jq`; set `XILA_PACKAGE` to reuse an existing binary).
+
+## Root key
+
+The root key is kept offline and only signs `root.json`:
+
+```sh
+xila-package registry root root.seed root-2026 repository.pub repository-2026 <version> root.json
+```
+
+Each new `root.json` needs a higher version and a root key of the previous one. Commit `root.json` and `root.json.sig`; `root.pub` is what devices pin.
 
 ## Licensing
 

@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  # Re-sign weekly: the index expires 30 days after signing.
+  schedule:
+    - cron: "17 4 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -33,9 +36,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .tools
-          key: xila-package-${{ hashFiles('tools/validate.sh') }}
+          key: xila-package-${{ hashFiles('tools/xila-package.sh') }}
       - name: "Validate | Keys, entries and archives"
         run: bash tools/validate.sh
+      - name: "Sign | Registry metadata with the repository key"
+        env:
+          XILA_REGISTRY_SIGNING_SEED_B64: ${{ secrets.XILA_REGISTRY_SIGNING_SEED_B64 }}
+        run: bash tools/sign.sh
       - name: "Publish | Configure Pages"
         uses: actions/configure-pages@v5
       - name: "Publish | Upload registry site"
