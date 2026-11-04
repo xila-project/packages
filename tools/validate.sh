@@ -4,25 +4,12 @@
 # usage: tools/validate.sh [base-ref]
 #   base-ref: refuse changes to already published entries (pull requests).
 # Set XILA_PACKAGE to an existing xila-package binary to skip installing one.
+# Publication then signs _site with tools/sign.sh.
 set -euo pipefail
-
-# package_manager revision providing `xila-package registry check`.
-PACKAGE_MANAGER_REVISION=a0d96a400d2e372c4369a110fd7a0ced51efc025
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
-
-builder="${XILA_PACKAGE:-}"
-if [[ -z "$builder" ]]; then
-  tools=".tools/xila-package-$PACKAGE_MANAGER_REVISION"
-  if [[ ! -x "$tools/bin/xila-package" ]]; then
-    # Own target directory: a shared CARGO_TARGET_DIR/build.target-dir can hold
-    # stale artifacts from other package_manager revisions.
-    CARGO_TARGET_DIR="$root/.tools/target" cargo install --locked --quiet --root "$tools" \
-      --git https://github.com/xila-project/package_manager --rev "$PACKAGE_MANAGER_REVISION" xila-package-builder
-  fi
-  builder="$root/$tools/bin/xila-package"
-fi
+builder="$(bash tools/xila-package.sh)"
 
 # Published versions are immutable: a new release is a new <version>.json.
 if [[ $# -ge 1 ]]; then

@@ -13,7 +13,7 @@
 |---|---|---|---|
 | Developer manifest (`xila-package.json`, app repository) | developer | — | what to ship |
 | Runtime manifest (`.xila/manifest.json`, inside the `.xpk`) | `xila-package bundle build` | developer key | exactly what the package contains (every file's SHA-256) |
-| Registry entry (`packages/…/<version>.json`, here) | `xila-package registry entry` | repository key (not yet) | where the archive is, and that the registry vouches for it |
+| Registry entry (`packages/…/<version>.json`, here) | `xila-package registry entry` | repository key | where the archive is, and that the registry vouches for it |
 
 An entry pins its archive by SHA-256 and size, so it transitively pins the signed runtime manifest; its copied fields must equal that manifest.
 
@@ -30,11 +30,16 @@ There is deliberately **no mandatory search** endpoint or dynamic server; a sear
 
 Devices will trust only the **repository key** and verify: repository key → developer key (with its namespaces) → package signature → file hashes. Two keys, two checks: the developer signature stays on the archive end to end, and the repository key vouches for both the entry and the developer key.
 
-**Not implemented yet** (until then, devices cannot authenticate the registry itself):
+The formats and checks are specified in [package_manager's registry trust model](https://github.com/xila-project/package_manager/blob/main/docs/registry-trust.md):
 
-- **Repository signatures** on entries and developer keys, and a signed **index** (snapshot of every entry's hash) with an **expiry** and an increasing **version**, so devices reject stale, rolled-back or mixed metadata (rollback, freeze and mix-and-match attacks).
-- An offline **root key** that only signs the online repository key and developer keys, so a compromised online key can be revoked.
-- **Revocation and rotation** of developer keys.
+- `root.json`, signed offline by the **root key**, names the keys allowed to sign the next root and the online **repository keys**;
+- the repository key signs every entry and developer key (detached `.sig`), and an **index** (snapshot of every file's hash) with an increasing **version** and an **expiry**, so devices reject stale, rolled-back or mixed metadata.
+
+**Not implemented yet:**
+
+- Devices: the on-device installer still trusts a single developer key; it must verify from the pinned root key.
+- Publishing every intermediate `root.json` version, needed once the root key rotates.
+- A developer-key **revocation** list (until then, removing a key and re-signing is noticed by devices with a fresh index).
 
 A SHA-256 digest or a developer signature alone does not grant permission to execute: capabilities and installation policy remain separate decisions.
 
