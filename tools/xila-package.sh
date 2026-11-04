@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # package_manager revision providing `xila-package registry check | sign | verify-signed`.
-PACKAGE_MANAGER_REVISION=8734bb06f0ee4ff6da1387fdf9b93cd9f783f9f2
+PACKAGE_MANAGER_REVISION=3d0ab51d7f3c852b69f6578ea241b4d9cc6ca672
 
 if [[ -n "${XILA_PACKAGE:-}" ]]; then
   echo "$XILA_PACKAGE"
